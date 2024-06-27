@@ -1,0 +1,1 @@
+export class FacebookStategy{}; // Typo in the class name
