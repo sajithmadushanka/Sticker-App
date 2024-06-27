@@ -26,7 +26,20 @@ export class AuthService {
         }
         return null;
     }
-
+    async updateRefreshToken(id:string, refreshToken:string):Promise<boolean>{
+        const hashedRefreshToken = await HashData.hasPassword(refreshToken);
+        try{
+            await this.prisma.auth.update({
+                where:{id},
+                data:{
+                    refreshToken:hashedRefreshToken
+                }
+            });
+            return true;
+        }catch(e){
+            throw new Error('Refresh token update failed');
+        }
+    }
 
     async signup(user:AuthDto):Promise<AuthResponse | ErrorResponse> {
         try {
@@ -40,14 +53,23 @@ export class AuthService {
             }
 
             const hashedPassword = await HashData.hasPassword(user.password);
+           
             const newUser = await this.prisma.auth.create({
                 data: {
                     ...user,
                     password: hashedPassword,
                 },
             });
+        
             const tokens = await this.tokenService.generateToken(newUser.id, newUser.email);
-            const {password,  ...user_} = newUser;
+
+            
+            if(this.updateRefreshToken(newUser.id, tokens.refreshToken)){
+                console.log('Refresh token updated');
+            }else console.log('Refresh token not updated')
+            
+           
+            const {password,refreshToken,  ...user_} = newUser;
             return{
                 user: user_,
                 tokens
@@ -68,7 +90,7 @@ export class AuthService {
             if(!user) return {error : "User not found"}
 
             const tokens = await this.tokenService.generateToken(user.id, user.email);
-            const {password, ...userWithoutPassword} = user;
+            const {password,refreshToken, ...userWithoutPassword} = user;
             return{
                 user:userWithoutPassword,
                 tokens
@@ -76,6 +98,21 @@ export class AuthService {
             }catch(e){
             throw new Error('SignIn failed');
         }
+    }
+
+    async logout(authId:string):Promise<string>{
+       const result = await this.prisma.auth.updateMany({
+            where:{
+                id:authId,
+                refreshToken:{not:null}
+            },
+            data:{
+                refreshToken:null
+            
+            }
+        });
+        if(result) return 'User logged out';
+        return 'User not logged out';
     }
         
 }

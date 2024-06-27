@@ -4,6 +4,7 @@ import { AuthDto } from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthResponse, ErrorResponse, Tokens } from './types';
 import { AtGuard } from './guards/AtGaurd';
+import { GetCurrentUserId } from 'src/common/decorators';
 
 
 @Controller('auth')
@@ -26,4 +27,11 @@ export class AuthController {
   async getProfile(@Request() req) {
     return req.user;
   }
+
+  @Post('logout')
+  @UseGuards(AtGuard)
+  async logout(@GetCurrentUserId() id):Promise<string>{
+    return this.authService.logout(id);
+  }
 }
+
